@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promessas</title>
+    <script>
+        let promessa = new Promise((resolve, reject) => {
+            // Simulação de uma requisição HTTP
+            setTimeout(() => {
+                // Requisição foi realizada
+                let resposta = {};
+                const erro_requisicao = false;
+                // Erro na requisição
+                if (erro_requisicao) {
+                    resposta = { codigo: 404, msg: 'Página não existe!'}
+                    reject(resposta);
+                }
+                resposta = { dados: [
+                    { id: 1, nome: 'Fulano' },
+                    { id: 2, nome: 'Beltrano' },
+                    { id: 3, nome: 'Sicrano' }
+                ]};
+                resolve(resposta);
+            }, 4000);
+        }).then(dados => {
+            console.log('then:', dados);
+            return('Valor 1 para o segundo then')
+        }).then(dados => {
+            console.log(dados, '- segundo then');
+            return('Valor 2 para o terceiro then')
+        }).then(dados => {
+            console.log(dados, '- terceiro then');
+        });
+    </script>
+</head>
+<body>
+</body>
+</html>

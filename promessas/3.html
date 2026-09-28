@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promessas</title>
+    <script>
+        let promessa = new Promise((resolve, reject) => {
+            try {
+                // Forçando uma condição de erro
+                throw new Error('Forçando um erro!');
+                // Promise executada com sucesso (não será executado)
+                setTimeout(() => {
+                    resolve('Promessa concluída com sucesso!');
+                }, 3000);
+            } catch (e) {
+                // Erro na execução da promessa
+                setTimeout(() => {
+                    console.log('Dentro do catch 3s:', new Date().toISOString().substr(11,8));
+                    reject(e);
+                }, 3000);
+            }
+        });
+        console.log('Definição promessa:', new Date().toISOString().substr(11,8), promessa);
+        setTimeout(() => {
+            console.log('Bloco 5s:', new Date().toISOString().substr(11,8), promessa);
+        }, 5000);
+    </script>
+</head>
+<body>
+</body>
+</html>
