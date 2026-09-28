@@ -1,0 +1,22 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			Array.prototype.each = function(funcao) {
+				for(let i=0; i<this.length; i++) {
+					funcao(this[i]);
+				}
+				
+				return(this);
+			}
+			
+			let animais=["gato", "cachorro", "rato", "passarinho"];
+			
+			animais.each(function(i) {
+				document.write(i + '<br>');
+			})
+		</script>
+	</head>
+	<body>
+		<p>Clique Atualizar (ou Recarregar) para executar este script novamente</p>
+	</body>
+</html>

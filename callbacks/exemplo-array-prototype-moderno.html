@@ -1,0 +1,22 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			Array.prototype.each = function(funcao) {
+				for(let i=0; i<this.length; i++) {
+					funcao(this[i]);
+				}
+				
+				return(this);
+			}
+			
+			let animais=["gato", "cachorro", "rato", "passarinho"];
+			
+			// Quando temos apenas 1 parâmetro (o i) e 1 linha de código,
+			// podemos remover os parênteses, as chaves e o ponto e vírgula interno!
+			animais.each(i => document.write(i + '<br>'));
+		</script>
+	</head>
+	<body>
+		<p>Clique Atualizar (ou Recarregar) para executar este script novamente</p>
+	</body>
+</html>
