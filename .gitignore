@@ -1,6 +1,18 @@
+# Dependências do Node (Nunca envie esta pasta!)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Configurações do VS Code (Opcional, mas recomendado ignorar o que for local)
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-!.vscode/*.code-workspace
+!.vscode/code-workspace
+
+# Arquivos do Sistema Operacional
+.DS_Store
+Thumbs.db
