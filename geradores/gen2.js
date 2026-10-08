@@ -6,13 +6,16 @@ function buscarNoBanco(id) {
 }
 
 function* fluxoRequisicao(id) {
-    console.log(`[Req ${id}] Iniciou o processo`);
-    
+    console.log(`[Req ${id}] [1] Processo iniciado...`);
+    console.log(`[Req ${id}] [2] Realizando a busca no Banco de Dados...`);
+
     // O yield PAUSA a função e joga a Promise do banco para fora
     const dados = yield buscarNoBanco(id); 
     
+    console.log(`[Req ${id}] [5] Banco respondeu! Retomando a execução...`);
+
     // O RESUME vai injetar o resultado diretamente na variável 'dados'
-    console.log(`[Req ${id}] Concluído com: ${dados}`);
+    console.log(`[Req ${id}] [6] Concluído com sucesso: ${dados}`);
 }
 
 function executarAssincrono(generatorFunction, id) {
@@ -24,8 +27,12 @@ function executarAssincrono(generatorFunction, id) {
     // O resultado.value aqui é a Promise retornada por buscarNoBanco()
     const promiseDoBanco = resultado.value;
 
+    console.log(`[Executor] [3] O yield da Promise da [Req ${id}] acabou de acontecer! Capturei a Promiese e vou esperar.`);
+
     // Quando a Promise do banco resolver (2 segundos depois)...
     promiseDoBanco.then((dadosReais) => {
+        console.log(`[Executor] [4] Promise da [Req ${id}] Resolvida! Injetando dados no gerador...`);
+
         // ...nós damos o .next() passando o dado real para dentro do generator.
         // Isso faz o código dar "RESUME" exatamente de onde parou!
         iterator.next(dadosReais); 

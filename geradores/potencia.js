@@ -13,6 +13,8 @@ function* potencias(valores, expoente) {
 const gerador = potencias(lista, 2);
 console.log(gerador);
 
+// Com o for...of, o gerador é consumido até o final
+// Não é necessário chamar o método next() explicitamente e nem o done
 for (const valor of gerador) {
     console.log(valor);
 }
