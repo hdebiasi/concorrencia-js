@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=device-width">
+    <title>Teste com Closures Moderno</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .contador-container { margin-bottom: 20px; font-size: 1.2rem; }
+        .btn { width: 100px; padding: 5px; margin: 2px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- Elementos visuais para mostrar os valores na tela -->
+    <div class="contador-container">
+        <p>Contador 1: <strong id="valor-c1">0</strong></p>
+        <p>Contador 2: <strong id="valor-c2">0</strong></p>
+    </div>
+
+    <!-- Botões limpos (sem Javascript misturado no HTML) -->
+    <button class="btn" id="btn-inc1">Inc 1</button>
+    <button class="btn" id="btn-inc2">Inc 2</button>
+    <br>
+    <button class="btn" id="btn-dec1">Dec 1</button>
+    <button class="btn" id="btn-dec2">Dec 2</button>
+
+    <script type="text/javascript">
+        // Factory Function moderna usando ES6+
+        const criarContador = (callbackAoMudar) => {
+            let contador = 0; // Variável privada (fechada na closure)
+
+            const alterarPor = (valor) => {
+                contador += valor;
+                // Em vez de alert(), avisa o mundo externo que o valor mudou
+                if (callbackAoMudar) callbackAoMudar(contador);
+            };
+
+            // Retorno usando a sintaxe curta de métodos (Shorthand)
+            return {
+                inc() { alterarPor(1); },
+                dec() { alterarPor(-1); },
+                get valor() { return contador; } // Usando um getter nativo
+            };
+        };
+
+        // Elementos do DOM que vamos atualizar
+        const displayC1 = document.getElementById('valor-c1');
+        const displayC2 = document.getElementById('valor-c2');
+
+        // Inicializando os contadores e passando a função que atualiza a tela
+        const contador1 = criarContador((novoValor) => displayC1.innerText = novoValor);
+        const contador2 = criarContador((novoValor) => displayC2.innerText = novoValor);
+
+        // Vinculando os eventos de clique de forma limpa (Event Listeners)
+        document.getElementById('btn-inc1').addEventListener('click', () => contador1.inc());
+        document.getElementById('btn-dec1').addEventListener('click', () => contador1.dec());
+        
+        document.getElementById('btn-inc2').addEventListener('click', () => contador2.inc());
+        document.getElementById('btn-dec2').addEventListener('click', () => contador2.dec());
+    </script>
+</body>
+</html>

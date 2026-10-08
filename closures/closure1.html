@@ -1,0 +1,27 @@
+<html>
+	<head>
+		<script type="text/javascript">
+			function novoContador() {
+				let i=0;
+				
+				return(function() {
+					i++;
+					return(i);
+				});
+			}
+			
+			c1=novoContador();
+			c2=novoContador();
+			
+			document.write(c1() + '<br>');
+			document.write(c2() + '<br>');
+			document.write(c1() + '<br>');
+			document.write(c1() + '<br>');
+			document.write(c2() + '<br>');
+		</script>
+	</head>
+	<body>
+		<p>Clique Atualizar (ou Recarregar) para executar este script novamente</p>
+	</body>
+</html>
+
