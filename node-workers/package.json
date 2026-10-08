@@ -1,0 +1,24 @@
+{
+  "name": "workers",
+  "version": "1.0.0",
+  "description": "Laboratório de Concorrência, Event Loop, Worker Threads e Clusters",
+  "main": "servidor-bloqueio-event-loop.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node servidor-bloqueio-event-loop.js",
+    "dev": "nodemon --ignore worker-convencional.js servidor-bloqueio-event-loop.js",
+    "cluster-crash": "node servidor-cluster-crash.js",
+    "piscina": "nodemon --ignore worker-piscina.js servidor-piscina.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "piscina": "^5.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

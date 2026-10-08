@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Laboratório de Concorrência e Paralelismo — Piscina</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f9;
+            color: #333;
+            max-width: 850px;
+            margin: 30px auto;
+            padding: 0 15px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 12px #0001;
+        }
+
+        h1,
+        h2 {
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+        }
+
+        .linha {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        button {
+            flex: 1;
+            min-width: 0;
+            padding: 13px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        button:hover {
+            filter: brightness(.92);
+        }
+
+        .verde {
+            background: #28a745;
+        }
+
+        .vermelho {
+            background: #dc3545;
+        }
+
+        .azul {
+            background: #007bff;
+        }
+
+        .roxo {
+            background: #7952b3;
+        }
+
+        .laranja {
+            background: #d97706;
+        }
+
+        .cronometro {
+            flex: 0 0 94px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cronometro.ativo {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        #log {
+            padding: 12px;
+            background: #e9ecef;
+            font-family: monospace;
+            font-size: 13px;
+            min-height: 55px;
+            max-height: 260px;
+            overflow: auto;
+            overflow-wrap: anywhere;
+            border-radius: 6px;
+        }
+
+        #log div {
+            margin-bottom: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background: #e9ecef;
+        }
+
+        .tabela-scroll {
+            overflow-x: auto;
+        }
+
+        .barra-linha {
+            display: grid;
+            grid-template-columns: 95px 1fr 85px;
+            gap: 10px;
+            align-items: center;
+            margin: 12px 0;
+        }
+
+        .trilha {
+            height: 26px;
+            background: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .barra {
+            background: #007bff;
+            height: 100%;
+            min-width: 2px;
+            border-radius: 5px;
+        }
+
+        #situacao {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .nota {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            button {
+                font-size: 12px;
+            }
+
+            .cronometro {
+                flex-basis: 74px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Laboratório de Concorrência e Paralelismo</h1>
+        <p class="nota">Todos os botões permanecem habilitados. Durante o benchmark, outros cálculos pesados são
+            recusados para não comprometer as medições. A requisição rápida continua disponível.</p>
+
+        <div class="linha">
+            <button class="verde" onclick="chamar('/rapido', 'tempo-rapido')">🟢 1. Requisição rápida</button>
+            <span class="cronometro" id="tempo-rapido">0.0s</span>
+        </div>
+        <div class="linha">
+            <button class="vermelho" onclick="chamar('/calcular-pesado-travado', 'tempo-travado')">🔴 2. Cálculo
+                bloqueante</button>
+            <span class="cronometro" id="tempo-travado">0.0s</span>
+        </div>
+        <div class="linha">
+            <button class="azul" onclick="chamar('/calcular-pesado', 'tempo-worker')">🔵 3. Cálculo com um
+                worker</button>
+            <span class="cronometro" id="tempo-worker">0.0s</span>
+        </div>
+        <div class="linha">
+            <button class="roxo" onclick="chamar('/calcular-paralelo', 'tempo-paralelo')">🟣 4. Cálculo paralelo (CPUs
+                disponíveis)</button>
+            <span class="cronometro" id="tempo-paralelo">0.0s</span>
+        </div>
+        <div class="linha">
+            <button class="laranja" onclick="executarBenchmark()">🟠 5. Benchmark (1 a 20 workers)</button>
+            <span class="cronometro" id="tempo-benchmark">0.0s</span>
+        </div>
+
+        <p id="situacao" role="status">Aguardando experimentos.</p>
+        <h2>📋 Histórico de respostas</h2>
+        <div id="log" role="log" aria-live="polite">Aguardando ações...</div>
+
+        <h2>📊 Benchmark de escalabilidade</h2>
+        <p class="nota" id="metodo">A tabela exibe a mediana das execuções por configuração; menores tempos são
+            melhores.</p>
+        <div class="tabela-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Workers</th>
+                        <th>Tempo (s)</th>
+                        <th>Speedup</th>
+                        <th>Eficiência</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela">
+                    <tr>
+                        <td colspan="4">Sem medições</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <h2>⏱️ Comparação dos tempos</h2>
+        <div id="grafico">Execute o benchmark.</div>
+    </div>
+    <script>
+        const logDiv = document.getElementById('log');
+        const situacao = document.getElementById('situacao');
+        const requisicoesAtuais = new Map();
+        let numeroRequisicao = 0;
+
+        function registrar(texto) {
+            if (logDiv.textContent.trim() === 'Aguardando ações...') logDiv.textContent = '';
+            const linha = document.createElement('div');
+            linha.textContent = '> ' + texto;
+            logDiv.appendChild(linha);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // O contador mostrado pertence à última requisição daquele botão.
+        // Requisições antigas continuam ativas e são registradas individualmente.
+        function iniciarTempo(id, numero, inicio) {
+            const visor = document.getElementById(id);
+            requisicoesAtuais.set(id, numero);
+            visor.textContent = '0.0s';
+            visor.classList.add('ativo');
+            return setInterval(() => {
+                if (requisicoesAtuais.get(id) !== numero) return;
+                visor.textContent = ((performance.now() - inicio) / 1000).toFixed(1) + 's';
+            }, 100);
+        }
+
+        function pararTempo(id, numero, inicio, intervalo) {
+            clearInterval(intervalo);
+            if (requisicoesAtuais.get(id) !== numero) return;
+            const visor = document.getElementById(id);
+            visor.textContent = ((performance.now() - inicio) / 1000).toFixed(1) + 's';
+            visor.classList.remove('ativo');
+            requisicoesAtuais.delete(id);
+        }
+
+        async function obterDados(rota) {
+            const resposta = await fetch(rota, { cache: 'no-store' });
+            const dados = await resposta.json();
+            if (!resposta.ok) throw new Error(dados.erro || dados.mensagem || `HTTP ${resposta.status}`);
+            return dados;
+        }
+
+        async function chamar(rota, idCronometro) {
+            const numero = ++numeroRequisicao;
+            const inicio = performance.now();
+            const intervalo = iniciarTempo(idCronometro, numero, inicio);
+            registrar(`#${numero} Solicitando ${rota}...`);
+            try {
+                const dados = await obterDados(rota);
+                registrar(`#${numero} ${dados.mensagem || 'Resultado: ' + dados.resultado}`);
+                if (dados.tempo !== undefined) registrar(`#${numero} Tempo no servidor: ${dados.tempo}s`);
+                if (dados.workers !== undefined) registrar(`#${numero} Tarefas de cálculo: ${dados.workers}`);
+                registrar(`#${numero} Tempo HTTP: ${((performance.now() - inicio) / 1000).toFixed(2)}s`);
+            } catch (erro) {
+                registrar(`#${numero} ❌ Erro: ${erro.message}`);
+            } finally {
+                pararTempo(idCronometro, numero, inicio, intervalo);
+                registrar('--------------------------------');
+            }
+        }
+
+        async function executarBenchmark() {
+            const numero = ++numeroRequisicao;
+            const inicio = performance.now();
+            const id = 'tempo-benchmark';
+            const intervalo = iniciarTempo(id, numero, inicio);
+            situacao.textContent = '🟠 Benchmark em execução...';
+            registrar(`#${numero} Iniciando benchmark...`);
+            try {
+                const dados = await obterDados('/benchmark');
+                registrar(`#${numero} CPUs disponíveis: ${dados.cpusDisponiveis}`);
+                registrar(`#${numero} Resultado verificado: ${dados.resultado}`);
+                registrar(`#${numero} Repetições por configuração: ${dados.repeticoesPorConfiguracao}`);
+                mostrarTabela(dados.resultados);
+                mostrarGrafico(dados.resultados);
+                document.getElementById('metodo').textContent =
+                    `Mediana de ${dados.repeticoesPorConfiguracao} execuções por configuração. Speedup relativo a 1 worker.`;
+                situacao.textContent = '✅ Benchmark concluído.';
+                registrar(`#${numero} Tempo HTTP total: ${((performance.now() - inicio) / 1000).toFixed(2)}s`);
+            } catch (erro) {
+                situacao.textContent = '❌ Não foi possível concluir o benchmark.';
+                registrar(`#${numero} ❌ Erro: ${erro.message}`);
+            } finally {
+                pararTempo(id, numero, inicio, intervalo);
+                registrar('--------------------------------');
+            }
+        }
+
+        function mostrarTabela(resultados) {
+            document.getElementById('tabela').innerHTML = resultados.map(r => `
+            <tr><td>${r.workers}</td><td>${r.tempo.toFixed(3)}</td>
+            <td>${r.speedup.toFixed(2)}x</td><td>${r.eficiencia.toFixed(1)}%</td></tr>
+        `).join('');
+        }
+
+        function mostrarGrafico(resultados) {
+            const maior = Math.max(...resultados.map(r => r.tempo));
+            document.getElementById('grafico').innerHTML = resultados.map(r => `
+            <div class="barra-linha">
+                <span>${r.workers} worker(s)</span>
+                <div class="trilha"><div class="barra" style="width:${100 * r.tempo / maior}%"></div></div>
+                <span>${r.tempo.toFixed(2)}s</span>
+            </div>
+        `).join('');
+        }
+    </script>
+</body>
+
+</html>

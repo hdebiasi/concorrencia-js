@@ -1,0 +1,204 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demonstração de Concorrência com Worker Threads</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 650px;
+            margin: 40px auto;
+            padding: 0 15px;
+            text-align: center;
+            background: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            margin: 20px auto;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .linha {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        button {
+            flex: 1;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { filter: brightness(0.92); }
+        .btn-fast { background: #28a745; }
+        .btn-lock { background: #dc3545; }
+        .btn-worker { background: #007bff; }
+
+        .cronometro {
+            width: 95px;
+            flex-shrink: 0;
+            padding: 13px 5px;
+            font-size: 19px;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+        }
+        .cronometro.ativo {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            min-height: 45px;
+            max-height: 300px;
+            overflow-y: auto;
+            overflow-wrap: anywhere;
+            text-align: left;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        #log div { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Painel de Teste de Concorrência</h2>
+
+        <p>A animação indica que o navegador continua ativo:</p>
+        <div class="spinner" aria-hidden="true"></div>
+
+        <div class="linha">
+            <button class="btn-fast"
+                    onclick="chamarRota('/rapido', 'tempo-rapido')">
+                1. Fazer Requisição Rápida
+            </button>
+            <span class="cronometro" id="tempo-rapido">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-lock"
+                    onclick="chamarRota('/calcular-pesado-travado', 'tempo-travado')">
+                2. Cálculo Pesado (TRAVA SERVIDOR)
+            </button>
+            <span class="cronometro" id="tempo-travado">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-worker"
+                    onclick="chamarRota('/calcular-pesado', 'tempo-worker')">
+                3. Cálculo Pesado (WORKER THREAD)
+            </button>
+            <span class="cronometro" id="tempo-worker">0.0s</span>
+        </div>
+
+        <h3>Histórico de Respostas:</h3>
+        <div id="log" role="log" aria-live="polite">
+            Aguardando ações...
+        </div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        let numeroRequisicao = 0;
+
+        // Identifica a requisição mais recente de cada botão
+        const requisicoesAtuais = new Map();
+
+        // Adiciona mensagens ao histórico com segurança
+        function adicionarLog(texto) {
+            if (logDiv.textContent.trim() === 'Aguardando ações...') {
+                logDiv.textContent = '';
+            }
+
+            const linha = document.createElement('div');
+            linha.textContent = '> ' + texto;
+            logDiv.appendChild(linha);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Executa uma requisição com cronômetro independente
+        async function chamarRota(rota, idCronometro) {
+            const cronometro = document.getElementById(idCronometro);
+            const numero = ++numeroRequisicao;
+            const inicio = performance.now();
+
+            // Esta requisição passa a controlar o cronômetro do botão
+            requisicoesAtuais.set(idCronometro, numero);
+
+            cronometro.textContent = '0.0s';
+            cronometro.classList.add('ativo');
+
+            adicionarLog(`#${numero} Solicitando ${rota}...`);
+
+            // Cada requisição tem seu próprio intervalo
+            const intervalo = setInterval(() => {
+                if (requisicoesAtuais.get(idCronometro) !== numero) {
+                    clearInterval(intervalo);
+                    return;
+                }
+
+                const segundos = (performance.now() - inicio) / 1000;
+                cronometro.textContent = segundos.toFixed(1) + 's';
+            }, 100);
+
+            try {
+                const resposta = await fetch(`${rota}?t=${Date.now()}`);
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(dados.mensagem || `HTTP ${resposta.status}`);
+                }
+
+                const tempoTotal = (performance.now() - inicio) / 1000;
+
+                adicionarLog(`#${numero} ${dados.mensagem}`);
+
+                if (dados.tempo !== undefined) {
+                    adicionarLog(`⏱️ #${numero} Tempo no servidor: ${dados.tempo}s`);
+                }
+
+                adicionarLog(`⏱️ #${numero} Tempo HTTP: ${tempoTotal.toFixed(2)}s`);
+                adicionarLog('--------------------------------');
+            } catch (erro) {
+                adicionarLog(`#${numero} Erro: ${erro.message}`);
+            } finally {
+                clearInterval(intervalo);
+
+                // Somente a requisição mais recente atualiza o cronômetro
+                if (requisicoesAtuais.get(idCronometro) === numero) {
+                    const tempoFinal = (performance.now() - inicio) / 1000;
+
+                    cronometro.textContent = tempoFinal.toFixed(1) + 's';
+                    cronometro.classList.remove('ativo');
+                    requisicoesAtuais.delete(idCronometro);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

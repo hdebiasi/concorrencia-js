@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Avançado de Concorrência</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 15px;
+            text-align: center;
+            background: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            margin: 20px auto;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .linha {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        button {
+            flex: 1;
+            min-width: 0;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { filter: brightness(0.92); }
+        .btn-fast { background: #28a745; }
+        .btn-lock { background: #dc3545; }
+        .btn-worker { background: #007bff; }
+        .btn-front { background: #e67e22; }
+        .btn-crash { background: #343a40; }
+
+        .cronometro {
+            width: 95px;
+            flex-shrink: 0;
+            padding: 13px 5px;
+            font-size: 19px;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+        }
+        .cronometro.ativo {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            min-height: 45px;
+            max-height: 350px;
+            overflow-y: auto;
+            overflow-wrap: anywhere;
+            text-align: left;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        #log div { margin-bottom: 5px; }
+        @media (max-width: 480px) {
+            .container { padding: 15px; }
+            button { font-size: 12px; padding: 12px 6px; }
+            .cronometro { width: 75px; font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Painel Avançado de Concorrência</h2>
+
+        <p>A animação indica se a interface do navegador está respondendo:</p>
+        <div class="spinner" aria-hidden="true"></div>
+
+        <div class="linha">
+            <button class="btn-fast"
+                    onclick="chamarRota('/rapido', 'tempo-rapido')">
+                1. Fazer Requisição Rápida
+            </button>
+            <span class="cronometro" id="tempo-rapido">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-lock"
+                    onclick="chamarRota('/calcular-pesado-travado', 'tempo-travado')">
+                2. Cálculo Pesado (BLOQUEIA CLUSTER)
+            </button>
+            <span class="cronometro" id="tempo-travado">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-worker"
+                    onclick="chamarRota('/calcular-pesado', 'tempo-worker')">
+                3. Cálculo Pesado (WORKER THREAD)
+            </button>
+            <span class="cronometro" id="tempo-worker">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-front"
+                    onclick="calcularNoFrontend()">
+                4. Cálculo Pesado (NAVEGADOR)
+            </button>
+            <span class="cronometro" id="tempo-front">0.0s</span>
+        </div>
+
+        <div class="linha">
+            <button class="btn-crash"
+                    onclick="chamarRota('/crash', 'tempo-crash')">
+                5. ⚠️ Simular Crash do Cluster
+            </button>
+            <span class="cronometro" id="tempo-crash">0.0s</span>
+        </div>
+
+        <h3>Histórico de Respostas:</h3>
+        <div id="log" role="log" aria-live="polite">
+            Aguardando ações...
+        </div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        let numeroRequisicao = 0;
+
+        // Identifica a requisição mais recente de cada botão
+        const requisicoesAtuais = new Map();
+
+        // Adiciona mensagens ao histórico sem interpretar HTML
+        function adicionarLog(texto) {
+            if (logDiv.textContent.trim() === 'Aguardando ações...') {
+                logDiv.textContent = '';
+            }
+
+            const linha = document.createElement('div');
+            linha.textContent = '> ' + texto;
+            logDiv.appendChild(linha);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Inicia o cronômetro da requisição mais recente de cada botão
+        function iniciarCronometro(idCronometro, numero, inicio) {
+            const cronometro = document.getElementById(idCronometro);
+
+            requisicoesAtuais.set(idCronometro, numero);
+            cronometro.textContent = '0.0s';
+            cronometro.classList.add('ativo');
+
+            const intervalo = setInterval(() => {
+                if (requisicoesAtuais.get(idCronometro) !== numero) {
+                    clearInterval(intervalo);
+                    return;
+                }
+
+                const segundos = (performance.now() - inicio) / 1000;
+                cronometro.textContent = segundos.toFixed(1) + 's';
+            }, 100);
+
+            return intervalo;
+        }
+
+        // Encerra o cronômetro sem interferir em outras requisições
+        function pararCronometro(idCronometro, numero, inicio, intervalo) {
+            clearInterval(intervalo);
+
+            if (requisicoesAtuais.get(idCronometro) === numero) {
+                const cronometro = document.getElementById(idCronometro);
+                const segundos = (performance.now() - inicio) / 1000;
+
+                cronometro.textContent = segundos.toFixed(1) + 's';
+                cronometro.classList.remove('ativo');
+                requisicoesAtuais.delete(idCronometro);
+            }
+        }
+
+        // Executa as requisições HTTP
+        async function chamarRota(rota, idCronometro) {
+            const numero = ++numeroRequisicao;
+            const inicio = performance.now();
+            const intervalo = iniciarCronometro(idCronometro, numero, inicio);
+
+            adicionarLog(`#${numero} Solicitando ${rota}...`);
+
+            try {
+                const resposta = await fetch(`${rota}?t=${Date.now()}`, {
+                    cache: 'no-store'
+                });
+
+                const dados = await resposta.json();
+
+                if (!resposta.ok) {
+                    throw new Error(dados.mensagem || `Erro HTTP ${resposta.status}`);
+                }
+
+                const tempoTotal = (performance.now() - inicio) / 1000;
+
+                adicionarLog(`#${numero} ${dados.mensagem || JSON.stringify(dados)}`);
+
+                if (dados.pid !== undefined) {
+                    adicionarLog(`#${numero} Processo PID: ${dados.pid}`);
+                }
+
+                if (dados.tempo !== undefined) {
+                    adicionarLog(`⏱️ #${numero} Tempo no servidor: ${dados.tempo}s`);
+                }
+
+                adicionarLog(`⏱️ #${numero} Tempo HTTP: ${tempoTotal.toFixed(2)}s`);
+                adicionarLog('--------------------------------');
+            } catch (erro) {
+                adicionarLog(`#${numero} Erro: ${erro.message}`);
+                adicionarLog('--------------------------------');
+            } finally {
+                pararCronometro(idCronometro, numero, inicio, intervalo);
+            }
+        }
+
+        // Executa o cálculo síncrono na thread principal do navegador
+        function calcularNoFrontend() {
+            const numero = ++numeroRequisicao;
+            const idCronometro = 'tempo-front';
+            const inicio = performance.now();
+            const intervalo = iniciarCronometro(idCronometro, numero, inicio);
+
+            adicionarLog(`#${numero} Iniciando cálculo no navegador...`);
+
+            // Permite atualizar a interface antes de iniciar o bloqueio.
+            setTimeout(() => {
+                const inicioCalculo = performance.now();
+
+                try {
+                    let resultado = 0n;
+
+                    for (let i = 0n; i < 500_000_000n; i++) {
+                        resultado += i;
+                    }
+
+                    const tempoCalculo = (performance.now() - inicioCalculo) / 1000;
+                    const resultadoFormatado = new Intl.NumberFormat('pt-BR')
+                        .format(resultado);
+
+                    adicionarLog(`#${numero} [Navegador] Resultado: ${resultadoFormatado}`);
+                    adicionarLog(`⏱️ #${numero} Tempo de cálculo: ${tempoCalculo.toFixed(2)}s`);
+                    adicionarLog('--------------------------------');
+                } catch (erro) {
+                    adicionarLog(`#${numero} Erro no navegador: ${erro.message}`);
+                } finally {
+                    pararCronometro(idCronometro, numero, inicio, intervalo);
+                }
+            }, 50);
+        }
+    </script>
+</body>
+</html>
