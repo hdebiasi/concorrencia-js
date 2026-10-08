@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Laboratório de Web Workers e Paralelismo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 760px;
+            margin: 30px auto;
+            padding: 0 16px;
+            background: #f4f4f9;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 26px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px #0001;
+        }
+
+        h1 {
+            font-size: 23px;
+            text-align: center;
+        }
+
+        p {
+            line-height: 1.5;
+        }
+
+        .spinner {
+            margin: 18px auto;
+            width: 42px;
+            height: 42px;
+            border: 5px solid #e7e7e7;
+            border-top-color: #007bff;
+            border-radius: 50%;
+            animation: giro 1s linear infinite;
+        }
+
+        @keyframes giro {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .linha {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        button {
+            flex: 1;
+            padding: 13px 9px;
+            border: 0;
+            border-radius: 6px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            filter: brightness(.94);
+        }
+
+        .laranja {
+            background: #d97706;
+        }
+
+        .azul {
+            background: #007bff;
+        }
+
+        .roxo {
+            background: #7952b3;
+        }
+
+        .relogio {
+            width: 84px;
+            text-align: center;
+            flex-shrink: 0;
+            padding: 12px 5px;
+            background: #fff3cd;
+            border-radius: 6px;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .relogio.ativo {
+            background: #d1ecf1;
+        }
+
+        .controles {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select {
+            padding: 8px;
+            font-size: 15px;
+        }
+
+        #log {
+            background: #e9ecef;
+            padding: 12px;
+            border-radius: 7px;
+            height: 250px;
+            overflow-y: auto;
+            overflow-wrap: anywhere;
+            font: 13px/1.6 monospace;
+        }
+
+        #log div {
+            border-bottom: 1px solid #d9dde1;
+        }
+
+        @media(max-width:500px) {
+            .container {
+                padding: 15px;
+            }
+            button {
+                font-size: 12px;
+            }
+            .relogio {
+                width: 65px;
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Laboratório de Web Workers</h1>
+        <p>Compare cálculo síncrono, uma Web Worker e divisão do trabalho entre várias Web Workers. O spinner deve
+            continuar girando quando o processamento ocorre fora da thread principal.</p>
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="controles">
+            <label for="quantidade">Workers no experimento 3:</label>
+            <select id="quantidade">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="8">8</option>
+                <option value="auto">Automático (hardwareConcurrency)</option>
+            </select>
+            <span id="hardware"></span>
+        </div>
+        <div class="linha"><button class="laranja" onclick="calcularSincrono()">1. Cálculo síncrono (trava a
+                página)</button><span class="relogio" id="tempo-sync">0.0s</span></div>
+        <div class="linha"><button class="azul" onclick="calcularComWorkers(1,'tempo-unico')">2. Cálculo com 1 Web
+                Worker</button><span class="relogio" id="tempo-unico">0.0s</span></div>
+        <div class="linha"><button class="roxo" onclick="calcularComWorkers(obterQuantidade(),'tempo-paralelo')">3.
+                Cálculo com várias Web Workers</button><span class="relogio" id="tempo-paralelo">0.0s</span></div>
+        <h2>Histórico</h2>
+        <div id="log" role="log" aria-live="polite">Aguardando experiências...</div>
+    </div>
+    <script>
+        const TOTAL = 500_000_000;
+        const ESPERADO = BigInt(TOTAL) * BigInt(TOTAL - 1) / 2n;
+        const log = document.getElementById('log');
+        const quantidadesAtuais = new Map();
+        let sequencia = 0;
+        const formatar = n => new Intl.NumberFormat('pt-BR').format(n);
+        const segundos = inicio => ((performance.now() - inicio) / 1000).toFixed(2);
+        const concorrencia = navigator.hardwareConcurrency || 1;
+
+        document.getElementById('hardware').textContent = `CPUs lógicas informadas: ${concorrencia}`;
+
+        function registrar(mensagem) {
+            if (log.textContent === 'Aguardando experiências...') {
+                log.textContent = '';
+            }
+
+            const linha = document.createElement('div');
+            linha.textContent = '> ' + mensagem;
+            log.appendChild(linha);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function iniciarRelogio(id, numero, inicio) {
+            const elemento = document.getElementById(id);
+            quantidadesAtuais.set(id, numero);
+            elemento.textContent = '0.0s';
+            elemento.classList.add('ativo');
+
+            const intervalo = setInterval(() => {
+                if (quantidadesAtuais.get(id) !== numero) { 
+                    clearInterval(intervalo); 
+                    return; 
+                }
+
+                elemento.textContent = ((performance.now() - inicio) / 1000).toFixed(1) + 's';
+            }, 100);
+
+            return () => {
+                clearInterval(intervalo);
+                if (quantidadesAtuais.get(id) === numero) {
+                    elemento.textContent = ((performance.now() - inicio) / 1000).toFixed(1) + 's';
+                    elemento.classList.remove('ativo');
+                    quantidadesAtuais.delete(id);
+                }
+            };
+        }
+
+        function obterQuantidade() {
+            const valor = document.getElementById('quantidade').value;
+            return valor === 'auto' ? concorrencia : Number(valor);
+        }
+
+        function calcularSincrono() {
+            const numero = ++sequencia;
+            const inicio = performance.now();
+            const parar = iniciarRelogio('tempo-sync', numero, inicio);
+
+            registrar(`#${numero} Cálculo síncrono solicitado.`);
+
+            // Permite ao navegador apresentar a mensagem antes do bloqueio.
+            setTimeout(() => {
+                try {
+                    let resultado = 0n;
+                    for (let i = 0n; i < BigInt(TOTAL); i++) resultado += i;
+                    registrar(`#${numero} Resultado: ${formatar(resultado)} | tempo: ${segundos(inicio)}s`);
+                } catch (erro) {
+                    registrar(`#${numero} Erro: ${erro.message}`);
+                } finally { 
+                    parar(); 
+                }
+            }, 50);
+        }
+
+        // Uma Promise para cada Web Worker, com encerramento após a resposta.
+        function tarefaWorker(inicio, fim) {
+            return new Promise((resolve, reject) => {
+                const worker = new Worker('./worker-browser.js');
+
+                worker.onmessage = ({ data }) => {
+                    worker.terminate();
+                    data.erro ? reject(new Error(data.erro)) : resolve(data.resultado);
+                };
+
+                worker.onerror = erro => {
+                    worker.terminate();
+                    reject(new Error(erro.message || 'Erro na Web Worker'));
+                };
+
+                worker.postMessage({ inicio, fim });
+            });
+        }
+
+        async function calcularComWorkers(quantidade, idRelogio) {
+            const numero = ++sequencia;
+            const inicio = performance.now();
+            const parar = iniciarRelogio(idRelogio, numero, inicio);
+
+            registrar(`#${numero} Iniciando cálculo com ${quantidade} worker(s).`);
+
+            try {
+                const tamanho = Math.ceil(TOTAL / quantidade);
+
+                const tarefas = [];
+                for (let i = 0; i < quantidade; i++) {
+                    const comeco = i * tamanho;
+                    const fim = Math.min(comeco + tamanho, TOTAL);
+                    if (comeco < fim) {
+                        tarefas.push(tarefaWorker(comeco, fim));
+                    }
+                }
+
+                const parciais = await Promise.all(tarefas);
+                const resultado = parciais.reduce((soma, valor) => soma + valor, 0n);
+                
+                if (resultado !== ESPERADO) {
+                    throw new Error('Resultado matemático incorreto');
+                }
+                
+                registrar(`#${numero} ✅ ${quantidade} worker(s): ${formatar(resultado)} | ${segundos(inicio)}s`);
+            } catch (erro) {
+                registrar(`#${numero} ❌ Erro: ${erro.message}`);
+            } finally { 
+                parar(); 
+            }
+        }
+    </script>
+</body>
+</html>
